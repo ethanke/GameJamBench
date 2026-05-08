@@ -1,0 +1,90 @@
+id: T001_power_strike
+revision: 1
+title: "Power Strike — replicated GAS ability with cooldown, cue, and UI"
+generated_by: curated
+generator_seed: null
+
+tier: 3
+capability_axes: [cpp, gas, replication, structured_data, validation, blueprint_graph]
+composes: []
+
+prompt: |
+  Add a "Power Strike" ability to the player character.
+
+  Requirements:
+    - Implement as a Gameplay Ability System ability (UGameplayAbility subclass).
+    - Bound to the gameplay tag: Ability.Action.PowerStrike
+    - Activation cost: 25 of attribute Attributes.Stamina (Stamina must be defined in an
+      AttributeSet on the player; create it if absent).
+    - Cooldown: 4 seconds, enforced via a cooldown GameplayEffect (tag Cooldown.PowerStrike).
+    - On activation: apply a one-shot damage effect to the closest target within 300 units
+      and a 90-degree forward cone, dealing 35 to attribute Attributes.Health.
+    - GameplayCue.PowerStrike.Hit fires on hit; route it to a GameplayCueNotify (a Burst notify
+      is fine). Visuals can be a simple Niagara system from /Engine content; do not block on art.
+    - Replicated authoritatively from the server. Predicted activation is acceptable but not
+      required; a non-predictive policy is fine.
+    - Bind activation to keyboard input "F" via Enhanced Input.
+    - Expose cooldown progress (0..1) on a UMG widget added to the HUD.
+
+  Constraints:
+    - Use C++ for ability, attribute set, and ASC wiring. Blueprint child classes only for
+      asset wiring (cue notify, widget, character BP overrides).
+    - Do not modify the engine. Stay within the project plugin boundary.
+    - The validator suite at golden/T001/ must pass without modification.
+
+starter_template: blank_cpp_5_7_4_gas
+starter_branch: main
+
+time_budget_min: 60
+token_budget: 800000
+msg_budget: 250
+
+allowed_tools:
+  - Read
+  - Edit
+  - Write
+  - Glob
+  - Grep
+  - Bash
+  - mcp__holo-unreal__*
+blocked_tools: []
+
+validators:
+  - kind: compile
+    target: Editor
+
+  - kind: editor_open
+
+  - kind: spec_test
+    filter: "GameJam.T001.*"
+
+  - kind: functional_test
+    map: /Game/GameJamBench/T001/Map_T001
+    test: BP_T001_PowerStrike_FunctionalTest
+
+  - kind: pie_recording
+    duration_sec: 30
+    assert_log_contains:
+      - "Ability.Action.PowerStrike"
+      - "GameplayCueExecuted"
+      - "Cooldown.PowerStrike"
+    assert_log_absent:
+      - "Ensure condition failed"
+      - "LogScript: Error"
+
+  - kind: insights_trace
+    assert_event_count_min:
+      - { event: "GameplayAbility.Activate", count: 1 }
+      - { event: "GameplayEffect.Applied",   count: 2 }   # cost + damage at minimum
+
+  - kind: screenshot_diff
+    ref: golden/T001/hit_frame.png
+    threshold: 0.85
+
+golden:
+  test_files:
+    - golden/T001/Spec_T001_PowerStrike.cpp
+    - golden/T001/Map_T001.umap.json
+  reference_screenshots:
+    - golden/T001/hit_frame.png
+  expected_class_graph: golden/T001/expected_class_graph.json

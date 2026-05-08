@@ -1,0 +1,82 @@
+# GameJamBench — Task Spec Schema (v0)
+#
+# A task is a self-contained "vibe-code prompt" we hand to an AI-agent system
+# (Claude Code + MCPs + recipes), with deterministic inputs and machine-checkable
+# success criteria. Tasks compose via the `composes` field.
+#
+# Conventions:
+#   - id: stable across revisions; format Tnnn_short_slug
+#   - revision: bump whenever validators change (invalidates prior runs)
+#   - capability_axes: which dimensions this task exercises (must match rubric.yaml)
+#   - tier: 1..5 difficulty; see rubric.yaml
+#   - prompt: the *only* natural-language input the agent sees on the task
+#   - starter_template: which template project the runner clones from
+#   - time_budget_min / token_budget: hard cuts; exceeded => run flagged Incomplete
+#   - validators[]: ordered list, short-circuit-on-fail; each emits PASS/FAIL/SKIP
+#   - golden: optional reference artifacts (NOT shown to agent) — used by validators
+
+task:
+  id: string                         # required, stable
+  revision: int                      # required, monotonically increasing
+  title: string                      # human label for dashboards
+  generated_by: string               # "curated" | "grammar:<rule_id>" | "human:<author>"
+  generator_seed: int | null         # for procedural reproduction
+
+  tier: int                          # 1..5
+  capability_axes: [string]          # subset of rubric.axes (>=1)
+  composes: [task_id]                # tasks that must pass first (regression chain)
+
+  prompt: |
+    multi-line natural-language prompt the agent receives verbatim
+
+  starter_template: string           # e.g. "blank_cpp_5.7.4" | "tps_template_5.7.4"
+  starter_branch: string             # git tag/branch within templates repo
+
+  time_budget_min: int               # wall-clock cap
+  token_budget: int                  # input+output token cap (soft for now)
+  msg_budget: int                    # max agent turns (hard cap)
+
+  allowed_tools: [string]            # e.g. ["Read","Edit","Bash","mcp__holo-unreal__*"]
+  blocked_tools: [string]            # explicit deny list
+
+  validators:
+    - kind: compile                  # `ubt` build pass on Win64 Development
+      target: Editor                 # Editor | Game | both
+    - kind: editor_open              # editor opens without fatal errors
+    - kind: spec_test                # Automation Spec test must pass
+      filter: "GameJam.T001.*"
+    - kind: functional_test          # in-PIE Functional Test
+      map: /Game/Tests/T001_Map
+      test: BP_T001_PowerStrikeFunctionalTest
+    - kind: pie_recording            # play-in-editor capture; agent must record
+      duration_sec: 30
+      assert_log_contains: ["AbilityActivated", "GameplayCueExecuted"]
+      assert_log_absent: ["LogScript: Warning", "Ensure condition failed"]
+    - kind: insights_trace           # parse Unreal Insights JSON dump
+      assert_event_count_min:
+        EventName: "GameplayAbility.Activate"
+        count: 1
+    - kind: screenshot_diff          # perceptual diff against golden frame
+      ref: golden/T001_strike_frame.png
+      threshold: 0.92
+    - kind: llm_judge                # rubric-graded review of recording (last resort)
+      rubric_file: judges/T001_judge.yaml
+      weight: 0.2                    # capped contribution
+
+  golden:                            # opaque to agent; validator-only
+    test_files: ["golden/T001_PowerStrike_SpecTest.cpp"]
+    reference_screenshots: ["golden/T001_strike_frame.png"]
+    expected_class_graph: golden/T001_class_graph.json
+
+# A run record is produced per (task, system) pair:
+#
+# run:
+#   task_id, task_revision
+#   system_id      # name of the (model+stack+recipe) under test
+#   system_config_hash
+#   started_at, ended_at, wall_seconds
+#   tokens_in, tokens_out, msgs, tool_calls
+#   validator_results: [{kind, status, detail, duration_ms}]
+#   score: float                     # 0..1, computed per scoring/score.py
+#   capability_fingerprint: {axis: float}  # per-axis 0..1 contribution
+#   artifacts_dir: path

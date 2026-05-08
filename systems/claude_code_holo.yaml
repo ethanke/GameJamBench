@@ -1,0 +1,14 @@
+id: claude_code_holo_v0
+description: |
+  Baseline system: Claude Code with the `holo-unreal` MCP we already have on
+  this Shadow PC, no extra recipes, no project map. The "what we have today"
+  reference point — every other system must beat this.
+
+model: claude-opus-4-7
+mcps:
+  - holo-unreal
+recipes: []
+claude_md_path: null
+notes: |
+  This is the control. Used as the denominator when computing relative gains
+  from gdep, NeoStack, VibeUE, and recipe-augmented stacks.

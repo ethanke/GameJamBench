@@ -1,0 +1,10 @@
+{
+	"FileVersion": 3,
+	"EngineAssociation": "5.7",
+	"Category": "GameJamBench",
+	"Description": "Minimal blank UE 5.7 project for benchmarking.",
+	"Plugins": [
+		{ "Name": "PythonScriptPlugin",        "Enabled": true },
+		{ "Name": "EditorScriptingUtilities",  "Enabled": true }
+	]
+}

@@ -1,0 +1,97 @@
+id: T002_motion_warped_parry
+revision: 1
+title: "Motion-Warped Parry — Mover + Pose Search + Anim Layer Interface"
+generated_by: curated
+generator_seed: null
+
+tier: 4
+capability_axes: [cpp, animation, structured_data, blueprint_graph, validation, debugging]
+composes: []
+
+prompt: |
+  Add a parry mechanic to the Game Animation Sample player character.
+
+  Behaviour:
+    - Input "Q" (Enhanced Input) initiates a parry — a forward-stepping defensive
+      move ~0.6s long that *snaps* (motion-warps) toward the closest enemy within
+      a 250-unit forward cone, ending facing the target.
+    - The animation source must be selected at runtime via Pose Search from the
+      project's Pose Search database; do NOT hardcode an asset path. Add a new
+      Pose Search descriptor for "parry" if necessary.
+    - Use Motion Warping with a single warp target named "ParryFocus" placed at
+      the closest valid enemy. Bend the root motion to land at the target.
+    - The Mover state during the parry must use a custom MovementMode subclass
+      (C++) that ignores incoming damage events tagged Action.Parry.Block for
+      the duration of the warp window (frames 5-22 of the anim, approximately).
+    - Parry must override the locomotion stack via an Anim Layer Interface; do
+      not modify the existing AnimBP graph topology — implement the parry pose
+      in a new Linked Anim Graph that satisfies the existing layer interface.
+    - Emit a gameplay event "Parry.Succeeded" when the warp window absorbs a
+      hit, "Parry.Failed" when the window expires without absorption.
+
+  Constraints:
+    - Custom MovementMode and damage-block logic in C++.
+    - Pose Search descriptor + Motion Warping target as DataAssets / structured
+      config; avoid Detail-Panel tweaks that aren't reproducible from source.
+    - Linked Anim Graph + Anim Layer override is the only acceptable BP work.
+    - Validator suite at golden/T002/ must pass without modification.
+
+starter_template: gameanim_5_7_4
+starter_branch: main
+
+time_budget_min: 180
+token_budget: 1500000
+msg_budget: 400
+
+allowed_tools:
+  - Read
+  - Edit
+  - Write
+  - Glob
+  - Grep
+  - Bash
+  - mcp__holo-unreal__*
+blocked_tools: []
+
+validators:
+  - kind: compile
+    target: Editor
+
+  - kind: editor_open
+
+  - kind: spec_test
+    filter: "GameJam.T002.*"
+
+  - kind: functional_test
+    map: /Game/GameJamBench/T002/Map_T002_Parry
+    test: BP_T002_Parry_FunctionalTest
+
+  - kind: pie_recording
+    duration_sec: 45
+    assert_log_contains:
+      - "Parry.Succeeded"
+      - "MotionWarping: Target ParryFocus"
+      - "PoseSearch: SelectedAsset"
+    assert_log_absent:
+      - "Ensure condition failed"
+      - "LogScript: Error"
+      - "LogPoseSearch: Warning  No matching pose"
+
+  - kind: insights_trace
+    assert_event_count_min:
+      - { event: "MotionWarping.UpdateRootMotion", count: 1 }
+      - { event: "PoseSearch.Search",              count: 1 }
+      - { event: "Mover.Tick",                     count: 30 }
+
+  - kind: screenshot_diff
+    ref: golden/T002/parry_apex_frame.png
+    threshold: 0.80
+
+golden:
+  test_files:
+    - golden/T002/Spec_T002_Parry.cpp
+    - golden/T002/Map_T002_Parry.umap.json
+    - golden/T002/expected_anim_layer_interface.json
+  reference_screenshots:
+    - golden/T002/parry_apex_frame.png
+  expected_class_graph: golden/T002/expected_class_graph.json

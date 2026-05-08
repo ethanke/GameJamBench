@@ -1,0 +1,39 @@
+id: T000_smoke
+revision: 1
+title: "Smoke test — verify the harness pipeline against a known-passing template"
+generated_by: curated
+generator_seed: null
+
+tier: 1
+capability_axes: [validation]
+composes: []
+
+prompt: |
+  No agent action required. This task verifies that the GameJamBench harness
+  itself is wired correctly: a fresh isolated workdir compiles (trivially —
+  the gameanim_5_7_4 template is content-only), the editor opens cleanly, and
+  log scanning detects no fatals.
+
+  If a real agent is run on this task it should do nothing and immediately
+  signal completion.
+
+starter_template: gameanim_5_7_4
+starter_branch: main
+
+time_budget_min: 10
+token_budget: 50000
+msg_budget: 10
+
+allowed_tools: [Read, Bash]
+blocked_tools: []
+
+validators:
+  - kind: compile
+    target: Editor
+
+  - kind: editor_open
+    timeout_sec: 600
+
+golden:
+  test_files: []
+  reference_screenshots: []

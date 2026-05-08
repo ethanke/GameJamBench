@@ -1,0 +1,93 @@
+# GameJamBench — Capability Rubric & Scoring (v0)
+#
+# A run produces:
+#   - binary pass/fail per validator
+#   - efficiency triple (wall, tokens, msgs) vs budget
+#   - capability_fingerprint: per-axis 0..1
+#
+# Final score = pass_score * (1 - efficiency_penalty)
+# Capability fingerprint is reported separately, NOT folded into the scalar.
+
+axes:
+  - id: cpp
+    name: "C++ authoring"
+    description: "UCLASS/UFUNCTION/UPROPERTY fluency, header/source split, build-clean code"
+  - id: structured_data
+    name: "DataAsset & config"
+    description: "DataAssets, DataTables, Config INIs — structured edits without BP graph"
+  - id: blueprint_graph
+    name: "Blueprint graph editing"
+    description: "Node creation, pin wiring, sub-graph navigation — the irreducible visual surface"
+  - id: animation
+    name: "Animation systems"
+    description: "AnimBP, State Tree Animation, Linked Anim Layers, Motion Matching"
+  - id: replication
+    name: "Networking & replication"
+    description: "Server/client logic, RPCs, replicated properties, Iris-aware patterns"
+  - id: gas
+    name: "Gameplay Ability System"
+    description: "Abilities, Effects, AttributeSets, GameplayCues, ASC wiring"
+  - id: editor_scripting
+    name: "Editor scripting & commandlets"
+    description: "Python in editor, headless commandlets, batch operations"
+  - id: integration
+    name: "Asset & plugin integration"
+    description: "Adapter pattern for third-party (Fab) content, Game Features Plugin"
+  - id: validation
+    name: "Test authoring & validation"
+    description: "Spec tests, Functional Tests, Gauntlet, PIE recording assertions"
+  - id: debugging
+    name: "Diagnostic & repair"
+    description: "Read crash dumps, Insights traces, fix compile/link/runtime failures"
+
+tiers:
+  - id: 1
+    name: "Atomic"
+    target_minutes: 5
+    example: "Add a UPROPERTY(EditAnywhere) float to an existing C++ class"
+  - id: 2
+    name: "Component"
+    target_minutes: 20
+    example: "Add a UActorComponent that broadcasts on overlap"
+  - id: 3
+    name: "Feature"
+    target_minutes: 60
+    example: "GAS ability with replicated cooldown, GameplayCue VFX, UI binding"
+  - id: 4
+    name: "Mini-game"
+    target_minutes: 180
+    example: "Top-down arena: 4-player, knockback ability, respawn timer"
+  - id: 5
+    name: "Game jam"
+    target_minutes: 480
+    example: "Build the prompt 'Capture the Flag with one unique mechanic' end-to-end"
+
+# Scoring formula (see scoring/score.py)
+scoring:
+  validator_weights:
+    compile:           {weight: 0.10, hard_gate: true}    # fail => score 0
+    editor_open:       {weight: 0.05, hard_gate: true}
+    spec_test:         {weight: 0.20}
+    functional_test:   {weight: 0.20}
+    pie_recording:     {weight: 0.15}
+    insights_trace:    {weight: 0.10}
+    screenshot_diff:   {weight: 0.10}
+    llm_judge:         {weight: 0.10, max: 0.10}          # capped contribution
+
+  efficiency_penalty:
+    # Multiplicative penalty applied to pass_score.
+    # 0 if all budgets honoured; up to 0.25 if all 3 budgets exceeded by 2x.
+    components:
+      wall:   {budget_field: time_budget_min, cap: 0.10}
+      tokens: {budget_field: token_budget,    cap: 0.10}
+      msgs:   {budget_field: msg_budget,      cap: 0.05}
+
+  human_intervention_penalty: 0.50    # any human keystroke during run halves score
+
+# What gets reported per system (= model + stack + recipes):
+report:
+  per_axis_pass_rate: true
+  tier_completion_curve: true        # per-tier pass-rate
+  efficiency_distribution: true      # box plot of wall/tokens/msgs
+  failure_taxonomy: true             # cluster failures by validator+detail
+  regression_drift: true             # vs previous run of same system on same tasks

@@ -1,0 +1,38 @@
+# Runs and workdirs (generated; ephemeral)
+runs/
+workdirs/
+
+# Templates: Epic content (Game Animation Sample, etc.) is NOT ours to redistribute.
+# Only the blank scaffold and any future templates we author from scratch are tracked.
+templates/*
+!templates/.gitkeep
+!templates/blank_5_7_4_python/
+templates/blank_5_7_4_python/Binaries/
+templates/blank_5_7_4_python/Intermediate/
+templates/blank_5_7_4_python/Saved/
+templates/blank_5_7_4_python/DerivedDataCache/
+
+# Per-template build outputs (in case any are tracked later)
+templates/*/Binaries/
+templates/*/Intermediate/
+templates/*/Saved/
+templates/*/DerivedDataCache/
+
+# Robocopy artefact at templates/ root
+templates/.robocopy_*.log
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+
+# Editor / OS / secrets
+.env
+.DS_Store
+.vs/
+.idea/
+.vscode/
+node_modules/

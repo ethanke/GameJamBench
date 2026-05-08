@@ -1,0 +1,61 @@
+id: T010_python_probe
+revision: 1
+title: "Python probe — agent writes init_unreal.py, harness sees it run"
+generated_by: curated
+generator_seed: null
+
+tier: 2
+capability_axes: [editor_scripting, validation]
+composes: []
+
+prompt: |
+  Goal: prove that you can author a Python startup script in this Unreal
+  Engine 5.7.4 project and that the editor will execute it on open.
+
+  Concrete requirements:
+    1. Create the file `Content/Python/init_unreal.py` in this project.
+    2. The script must use the `unreal` module to log the exact magic
+       string `GJB_T010_PROBE_OK` at WARNING level so it appears in the
+       captured stdout. The exact line
+           import unreal
+           unreal.log_warning("GJB_T010_PROBE_OK")
+       is sufficient. (UE filters `unreal.log()` Display output from the
+       commandlet stdout; `log_warning` is what reliably surfaces.)
+    3. Do not modify any other file. Do not enable additional plugins
+       beyond what is already in the .uproject. PythonScriptPlugin is
+       already enabled.
+    4. When done, stop. The harness will close the loop:
+         - launches UnrealEditor-Cmd against the project
+         - PythonScriptPlugin auto-runs init_unreal.py on startup
+         - the editor_open validator scans the log for the magic string
+
+  Constraints:
+    - Pure file authoring; no compile step needed (this template is
+      content-only).
+    - The magic string must appear verbatim in the engine log.
+
+starter_template: blank_5_7_4_python
+starter_branch: main
+
+time_budget_min: 15
+token_budget: 80000
+msg_budget: 30
+
+allowed_tools: [Read, Edit, Write, Glob, Grep, Bash]
+blocked_tools: []
+
+validators:
+  - kind: compile
+    target: Editor
+
+  - kind: editor_open
+    timeout_sec: 600
+    assert_log_contains:
+      - "GJB_T010_PROBE_OK"
+    assert_log_absent:
+      - "Ensure condition failed"
+      - "LogPython: Error"
+
+golden:
+  test_files: []
+  reference_screenshots: []
