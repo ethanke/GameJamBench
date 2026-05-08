@@ -74,7 +74,7 @@ def _winlong(p: pathlib.Path | str) -> str:
 def hardlink_clone(src: pathlib.Path, dst: pathlib.Path,
                    exclude_dirs: frozenset[str] = DEFAULT_EXCLUDE_DIRS,
                    exclude_globs: tuple[str, ...] = DEFAULT_EXCLUDE_GLOBS,
-                   make_readonly: bool = True) -> CloneStats:
+                   make_readonly: bool = False) -> CloneStats:
     """Clone src -> dst using NTFS/Linux hardlinks where possible.
 
     Falls back to copy on individual cross-device failures. dst must not

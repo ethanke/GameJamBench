@@ -284,7 +284,8 @@ def spec_test_validator(vdef: dict[str, Any], project_dir: pathlib.Path, run) ->
                 "log_tail": log_text[-4000:]}
 
     try:
-        report = json.loads(index.read_text(encoding="utf-8"))
+        # UE writes a UTF-8 BOM on Windows; utf-8-sig strips it transparently.
+        report = json.loads(index.read_text(encoding="utf-8-sig"))
     except json.JSONDecodeError as exc:
         return {"kind": "spec_test", "status": "FAIL",
                 "detail": f"automation report unparseable: {exc}",

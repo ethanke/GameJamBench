@@ -1,0 +1,21 @@
+{
+	"FileVersion": 3,
+	"EngineAssociation": "5.7",
+	"Category": "GameJamBench",
+	"Description": "Minimal C++ UE 5.7.4 project for benchmarking.",
+	"Modules": [
+		{
+			"Name": "BlankCpp",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"AdditionalDependencies": [
+				"Engine"
+			]
+		}
+	],
+	"Plugins": [
+		{ "Name": "PythonScriptPlugin",       "Enabled": true },
+		{ "Name": "EditorScriptingUtilities", "Enabled": true },
+		{ "Name": "Fab",                      "Enabled": false }
+	]
+}

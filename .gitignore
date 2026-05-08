@@ -3,14 +3,19 @@ runs/
 workdirs/
 
 # Templates: Epic content (Game Animation Sample, etc.) is NOT ours to redistribute.
-# Only the blank scaffold and any future templates we author from scratch are tracked.
+# Only blank scaffolds we author from scratch are tracked.
 templates/*
 !templates/.gitkeep
 !templates/blank_5_7_4_python/
+!templates/blank_cpp_5_7_4/
 templates/blank_5_7_4_python/Binaries/
 templates/blank_5_7_4_python/Intermediate/
 templates/blank_5_7_4_python/Saved/
 templates/blank_5_7_4_python/DerivedDataCache/
+templates/blank_cpp_5_7_4/Binaries/
+templates/blank_cpp_5_7_4/Intermediate/
+templates/blank_cpp_5_7_4/Saved/
+templates/blank_cpp_5_7_4/DerivedDataCache/
 
 # Per-template build outputs (in case any are tracked later)
 templates/*/Binaries/

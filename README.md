@@ -110,8 +110,10 @@ score = pass_score × (1 - efficiency_penalty) - human_intervention_penalty
 
 ## Status
 
-**Phase A + B + C complete (2026-05-08)** — pipeline runs end-to-end and
-isolates 10 GB UE templates at zero disk cost via hardlinks.
+**Phase A + B + C + D + E complete (2026-05-08)** — pipeline runs
+end-to-end with four real validators, isolates 10 GB UE templates at zero
+disk cost, and ships a buildable blank C++ template that exercises the
+full compile / editor_open / spec_test path.
 
 Real:
 - `gjb run` — bootstrap → hardlink-isolate (or copy) → stage agent → validate → score → archive
@@ -119,7 +121,8 @@ Real:
 - `gjb report` — aggregate `runs/` into a markdown leaderboard
 - `gjb prune [--keep N]` — robust workdir cleanup (handles Windows long paths + read-only hardlinks)
 - `gjb generate --seed N --tier T` — slot-grammar task generator
-- Validators: `compile` (UBT), `editor_open` (pythonscript commandlet + log assertions), `spec_test` (Automation framework + JSON report parse), `pie_recording` (agent-driven simulation in commandlet mode + duration window + log assertions; v1 will move to true PIE/game-mode when C++-bearing templates exist)
+- Validators: `compile` (real UBT against the workdir's .uproject), `editor_open` (pythonscript commandlet + log assertions), `spec_test` (Automation framework + JSON report parse, BOM-tolerant), `pie_recording` (agent-driven simulation in commandlet mode + duration window + log assertions)
+- Templates: `blank_5_7_4_python` (284-byte content-only Python sandbox), `blank_cpp_5_7_4` (full C++ project — Game + Editor targets, sample Spec test, builds clean against UE 5.7.4 in ~80 sec)
 - Isolation: NTFS hardlink walk with `\\?\` long-path support; per-workdir disk
   ~ delta (10.5 GB template → 0 new bytes / 12 sec); read-only fence on
   hardlinked files prevents in-place mutation from corrupting the template;

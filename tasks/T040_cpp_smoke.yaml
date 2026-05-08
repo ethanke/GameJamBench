@@ -1,0 +1,43 @@
+id: T040_cpp_smoke
+revision: 1
+title: "C++ template smoke — UBT compiles, editor opens"
+generated_by: curated
+generator_seed: null
+
+tier: 1
+capability_axes: [cpp, validation]
+composes: []
+
+prompt: |
+  No agent action required. This task verifies that the blank_cpp_5_7_4
+  template is buildable and openable: a fresh isolated workdir compiles
+  the C++ game module via UnrealBuildTool, then the editor opens cleanly
+  with the freshly-built DLL loaded.
+
+  If a real agent runs this, it should do nothing.
+
+starter_template: blank_cpp_5_7_4
+starter_branch: main
+
+time_budget_min: 30
+token_budget: 50000
+msg_budget: 10
+
+allowed_tools: [Read, Bash]
+blocked_tools: []
+
+validators:
+  - kind: compile
+    target: Editor
+
+  - kind: editor_open
+    timeout_sec: 600
+
+  - kind: spec_test
+    filter: "GameJamBench.Harness.Smoke"
+    require_min: 2
+    timeout_sec: 600
+
+golden:
+  test_files: []
+  reference_screenshots: []
