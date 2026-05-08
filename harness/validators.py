@@ -320,12 +320,134 @@ def spec_test_validator(vdef: dict[str, Any], project_dir: pathlib.Path, run) ->
 
 # ---- registry ---------------------------------------------------------------
 
+# ---- pie_recording ----------------------------------------------------------
+
+def pie_recording_validator(vdef: dict[str, Any], project_dir: pathlib.Path, run) -> dict[str, Any]:
+    """Run an agent-authored simulation script under UE for a bounded duration,
+    capture stdout, apply log assertions.
+
+    v0 implementation: pythonscript commandlet executes the agent's script.
+    The agent uses unreal.* APIs to load levels, instantiate actors, run
+    simulation logic, and emit log_warning / log_error markers that the
+    validator asserts on. The engine is loaded with project + plugins but
+    does not enter true PIE/game tick — that requires a C++-bearing
+    template + game module (Phase E).
+
+    vdef:
+        agent_script:   relative path under project_dir (default Content/Python/pie_simulate.py)
+        duration_sec:   intent for how long the script should run (informational; the
+                        script controls its own timing)
+        timeout_sec:    hard wall on the subprocess (default duration_sec + 120)
+        assert_log_contains: list[str]
+        assert_log_absent:   list[str]
+    """
+    t0 = time.time()
+    duration_sec = int(vdef.get("duration_sec", 15))
+    timeout_sec = int(vdef.get("timeout_sec", duration_sec + 120))
+    script_rel = vdef.get("agent_script", "Content/Python/pie_simulate.py")
+
+    uproject = _project_uproject(project_dir)
+    if uproject is None:
+        return {"kind": "pie_recording", "status": "FAIL",
+                "detail": "no .uproject", "duration_ms": int((time.time() - t0) * 1000)}
+
+    editor_cmd = _editor_cmd()
+    if not editor_cmd.exists():
+        return {"kind": "pie_recording", "status": "SKIP",
+                "detail": f"editor not found at {editor_cmd}",
+                "duration_ms": int((time.time() - t0) * 1000)}
+
+    agent_script = (project_dir / script_rel).resolve()
+    if not agent_script.exists():
+        return {"kind": "pie_recording", "status": "FAIL",
+                "detail": f"agent script not found: {script_rel}",
+                "duration_ms": int((time.time() - t0) * 1000)}
+
+    log_path = run.artifacts_dir / "logs" / "pie_recording.log"
+    script_for_python = str(agent_script).replace("\\", "/")
+
+    # The pythonscript commandlet's -script= argument is parsed as a single
+    # line of Python — control-flow blocks (try/except, for, def) don't fit
+    # there. Instead we write a wrapper to the run's artifacts dir and exec it.
+    wrapper_path = run.artifacts_dir / "validator" / "pie_wrapper.py"
+    wrapper_path.parent.mkdir(parents=True, exist_ok=True)
+    wrapper_path.write_text(
+        "import time, traceback\n"
+        "import unreal\n"
+        "unreal.log_warning('GJB_PIE_BEGIN')\n"
+        "_t0 = time.time()\n"
+        "_ok = False\n"
+        "try:\n"
+        f"    exec(open({script_for_python!r}, 'r', encoding='utf-8').read())\n"
+        "    _ok = True\n"
+        "except SystemExit:\n"
+        "    _ok = True\n"
+        "except Exception:\n"
+        "    unreal.log_error('GJB_PIE_EXCEPTION: ' + traceback.format_exc())\n"
+        "finally:\n"
+        "    unreal.log_warning(f'GJB_PIE_END elapsed={time.time()-_t0:.2f}s ok={_ok}')\n",
+        encoding="utf-8")
+    wrapper_for_python = str(wrapper_path).replace("\\", "/")
+
+    inline = f"exec(open({wrapper_for_python!r}, 'r', encoding='utf-8').read())"
+
+    cmd = [
+        str(editor_cmd), str(uproject),
+        "-run=pythonscript",
+        f"-script={inline}",
+        "-unattended", "-nullrhi", "-nosplash", "-nopause", "-NoLogTimes",
+    ]
+
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, shell=False, timeout=timeout_sec)
+    except subprocess.TimeoutExpired as exc:
+        partial = (exc.stdout or "") + "\n--- STDERR ---\n" + (exc.stderr or "")
+        log_path.write_text(partial, encoding="utf-8")
+        return {"kind": "pie_recording", "status": "FAIL",
+                "detail": f"hard timeout after {timeout_sec}s",
+                "duration_ms": int((time.time() - t0) * 1000),
+                "artifacts": {"log": str(log_path)}}
+
+    log_text = (proc.stdout or "") + "\n--- STDERR ---\n" + (proc.stderr or "")
+    log_path.write_text(
+        f"CMD: {' '.join(cmd[:6])} ...\nEXIT: {proc.returncode}\n\n{log_text}",
+        encoding="utf-8")
+
+    fatals = _scan_log_for_fatals(log_text)
+    if proc.returncode != 0 or fatals:
+        return {"kind": "pie_recording", "status": "FAIL",
+                "detail": f"exit={proc.returncode} fatals={len(fatals)}: {fatals[:3]}",
+                "duration_ms": int((time.time() - t0) * 1000),
+                "artifacts": {"log": str(log_path)}}
+
+    if "GJB_PIE_EXCEPTION" in log_text:
+        return {"kind": "pie_recording", "status": "FAIL",
+                "detail": "agent script raised an exception (see log GJB_PIE_EXCEPTION)",
+                "duration_ms": int((time.time() - t0) * 1000),
+                "artifacts": {"log": str(log_path)}}
+
+    missing = [s for s in vdef.get("assert_log_contains", []) if s not in log_text]
+    forbidden = [s for s in vdef.get("assert_log_absent", []) if s in log_text]
+    if missing or forbidden:
+        return {"kind": "pie_recording", "status": "FAIL",
+                "detail": f"log assertions failed: missing={missing} forbidden={forbidden}",
+                "duration_ms": int((time.time() - t0) * 1000),
+                "artifacts": {"log": str(log_path)}}
+
+    return {"kind": "pie_recording", "status": "PASS",
+            "detail": f"agent script ran cleanly; required strings present: {vdef.get('assert_log_contains', [])}",
+            "duration_ms": int((time.time() - t0) * 1000),
+            "artifacts": {"log": str(log_path)}}
+
+
+# ---- registry ---------------------------------------------------------------
+
 REGISTRY: dict[str, Callable] = {
     "compile":         compile_validator,
     "editor_open":     editor_open_validator,
     "spec_test":       spec_test_validator,
     "functional_test": _stub("functional_test"),
-    "pie_recording":   _stub("pie_recording"),
+    "pie_recording":   pie_recording_validator,
     "insights_trace":  _stub("insights_trace"),
     "screenshot_diff": _stub("screenshot_diff"),
     "llm_judge":       _stub("llm_judge"),

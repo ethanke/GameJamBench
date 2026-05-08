@@ -119,14 +119,14 @@ Real:
 - `gjb report` — aggregate `runs/` into a markdown leaderboard
 - `gjb prune [--keep N]` — robust workdir cleanup (handles Windows long paths + read-only hardlinks)
 - `gjb generate --seed N --tier T` — slot-grammar task generator
-- Validators: `compile` (UBT), `editor_open` (pythonscript commandlet + log assertions), `spec_test` (Automation framework + JSON report parse)
+- Validators: `compile` (UBT), `editor_open` (pythonscript commandlet + log assertions), `spec_test` (Automation framework + JSON report parse), `pie_recording` (agent-driven simulation in commandlet mode + duration window + log assertions; v1 will move to true PIE/game-mode when C++-bearing templates exist)
 - Isolation: NTFS hardlink walk with `\\?\` long-path support; per-workdir disk
   ~ delta (10.5 GB template → 0 new bytes / 12 sec); read-only fence on
   hardlinked files prevents in-place mutation from corrupting the template;
   per-run sha256 manifest captures the exact starting state for tamper detection.
 
-Stubs (return SKIP — implemented in Phase D after agent-loop validation):
-`functional_test`, `pie_recording`, `insights_trace`, `screenshot_diff`, `llm_judge`.
+Stubs (return SKIP — implemented later):
+`functional_test`, `insights_trace`, `screenshot_diff`, `llm_judge`.
 
 ## Contributing
 

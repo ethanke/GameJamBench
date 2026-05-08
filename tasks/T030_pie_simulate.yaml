@@ -1,0 +1,58 @@
+id: T030_pie_simulate
+revision: 1
+title: "PIE simulate — agent runs a bounded simulation and asserts on log markers"
+generated_by: curated
+generator_seed: null
+
+tier: 2
+capability_axes: [editor_scripting, validation]
+composes: []
+
+prompt: |
+  Goal: prove the harness can grade an agent-driven simulation that runs
+  inside Unreal Engine for a bounded duration.
+
+  Concrete requirements:
+    1. Create the file `Content/Python/pie_simulate.py` in this project.
+    2. The script must use the `unreal` module to:
+         - log_warning the marker `GJB_T030_FRAME_BEGIN` once at start
+         - run a small simulation loop (any synchronous loop is fine — for
+           example, instantiate a few in-memory FVector / unreal.Vector
+           objects, sum their components, log progress)
+         - log_warning the marker `GJB_T030_FRAME_END` once when done
+    3. The script must complete in under 5 seconds. The harness gives you a
+       30-second wall budget but a small loop is sufficient for the smoke.
+    4. Do not modify any other file. Do not depend on PIE or game tick.
+
+  Constraints:
+    - Pure Python; no compile step needed.
+    - Both markers must appear verbatim in the captured log (use
+      log_warning, not log — Display-level output is filtered).
+
+starter_template: blank_5_7_4_python
+starter_branch: main
+
+time_budget_min: 15
+token_budget: 80000
+msg_budget: 30
+
+allowed_tools: [Read, Edit, Write, Glob, Grep, Bash]
+blocked_tools: []
+
+validators:
+  - kind: pie_recording
+    duration_sec: 30
+    timeout_sec: 180
+    agent_script: Content/Python/pie_simulate.py
+    assert_log_contains:
+      - "GJB_T030_FRAME_BEGIN"
+      - "GJB_T030_FRAME_END"
+      - "GJB_PIE_BEGIN"
+      - "GJB_PIE_END"
+    assert_log_absent:
+      - "GJB_PIE_EXCEPTION"
+      - "Ensure condition failed"
+
+golden:
+  test_files: []
+  reference_screenshots: []
