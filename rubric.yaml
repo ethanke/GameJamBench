@@ -70,6 +70,7 @@ scoring:
     spec_test:         {weight: 0.20}
     functional_test:   {weight: 0.20}
     pie_recording:     {weight: 0.15}
+    live_python:       {weight: 0.10}                     # holo-unreal RPC path
     insights_trace:    {weight: 0.10}
     screenshot_diff:   {weight: 0.10}
     llm_judge:         {weight: 0.10, max: 0.10}          # capped contribution

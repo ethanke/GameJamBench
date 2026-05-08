@@ -110,10 +110,12 @@ score = pass_score × (1 - efficiency_penalty) - human_intervention_penalty
 
 ## Status
 
-**Phase A + B + C + D + E complete (2026-05-08)** — pipeline runs
-end-to-end with four real validators, isolates 10 GB UE templates at zero
-disk cost, and ships a buildable blank C++ template that exercises the
-full compile / editor_open / spec_test path.
+**Phase A through F complete (2026-05-08)** — pipeline runs end-to-end
+with five real validators, isolates 10 GB UE templates at zero disk
+cost, ships a buildable blank C++ template that exercises the full
+compile / editor_open / spec_test path, and talks to a live editor via
+Python Remote Execution at ~330 ms per call (30× faster than
+cold-launching a commandlet).
 
 Real:
 - `gjb run` — bootstrap → hardlink-isolate (or copy) → stage agent → validate → score → archive
@@ -121,7 +123,7 @@ Real:
 - `gjb report` — aggregate `runs/` into a markdown leaderboard
 - `gjb prune [--keep N]` — robust workdir cleanup (handles Windows long paths + read-only hardlinks)
 - `gjb generate --seed N --tier T` — slot-grammar task generator
-- Validators: `compile` (real UBT against the workdir's .uproject), `editor_open` (pythonscript commandlet + log assertions), `spec_test` (Automation framework + JSON report parse, BOM-tolerant), `pie_recording` (agent-driven simulation in commandlet mode + duration window + log assertions)
+- Validators: `compile` (real UBT against the workdir's .uproject), `editor_open` (pythonscript commandlet + log assertions), `spec_test` (Automation framework + JSON report parse, BOM-tolerant), `pie_recording` (agent-driven simulation in commandlet mode + duration window + log assertions), `live_python` (Python Remote Execution against a running editor — ~330 ms per call vs ~10 sec cold-launch)
 - Templates: `blank_5_7_4_python` (284-byte content-only Python sandbox), `blank_cpp_5_7_4` (full C++ project — Game + Editor targets, sample Spec test, builds clean against UE 5.7.4 in ~80 sec)
 - Isolation: NTFS hardlink walk with `\\?\` long-path support; per-workdir disk
   ~ delta (10.5 GB template → 0 new bytes / 12 sec); read-only fence on
@@ -130,6 +132,26 @@ Real:
 
 Stubs (return SKIP — implemented later):
 `functional_test`, `insights_trace`, `screenshot_diff`, `llm_judge`.
+
+### Talking to a live editor
+
+`live_python` requires the editor to be already running against the
+workdir's project, with Python Remote Execution enabled. Two paths:
+
+  * The harness's `ue_remote.py` adapter dynamically loads UE's bundled
+    `remote_execution.py` (no fork, no copy) and discovers the running
+    node via UDP multicast.
+  * For interactive work, the holo-unreal MCP exposes `ue_launch`,
+    `ue_enable_remote`, `ue_py`, `ue_log`, `ue_close` to drive the
+    editor end-to-end from a Claude Code conversation.
+
+Launch flow:
+  1. `gjb run --skip-validate` to stage a workdir
+  2. `Build.bat <project>Editor Win64 Development -Project=…` to compile
+  3. (once) `ue_enable_remote` to enable Python Remote Execution
+  4. `ue_launch` against the workdir's `.uproject`
+  5. `gjb claim <run_id>` (or any task with a `live_python` validator) to
+     grade against the running editor
 
 ## Contributing
 

@@ -443,12 +443,111 @@ def pie_recording_validator(vdef: dict[str, Any], project_dir: pathlib.Path, run
 
 # ---- registry ---------------------------------------------------------------
 
+# ---- live_python (MCP-style live editor RPC) -------------------------------
+
+def live_python_validator(vdef: dict[str, Any], project_dir: pathlib.Path, run) -> dict[str, Any]:
+    """Run Python in a live UE editor (already launched against this workdir's
+    project) and assert on the structured output.
+
+    Cost vs editor_open: ~330 ms per call vs ~10 sec cold-launch — 30x faster
+    when the editor is reused across multiple validators in the same run.
+
+    The caller is responsible for launching the editor first (via the
+    holo-unreal MCP `ue_launch` or any other path) with Python Remote
+    Execution enabled. If discovery fails, we return SKIP with guidance.
+
+    vdef:
+        code:                string of Python to exec in the editor
+        agent_script:        OR a path (relative to project_dir) whose
+                             contents should be exec'd
+        assert_output_contains: list[str] — must each appear in the
+                             concatenated `output[*].output` strings
+        assert_output_absent:   list[str]
+        require_success:     default True; FAIL if the command's
+                             success field is False
+        timeout_sec:         per-call timeout (default 60)
+    """
+    t0 = time.time()
+    timeout = float(vdef.get("timeout_sec", 60.0))
+
+    code = vdef.get("code")
+    if code is None:
+        rel = vdef.get("agent_script")
+        if not rel:
+            return {"kind": "live_python", "status": "FAIL",
+                    "detail": "vdef must specify either `code` or `agent_script`",
+                    "duration_ms": int((time.time() - t0) * 1000)}
+        script = (project_dir / rel).resolve()
+        if not script.exists():
+            return {"kind": "live_python", "status": "FAIL",
+                    "detail": f"agent script not found: {rel}",
+                    "duration_ms": int((time.time() - t0) * 1000)}
+        code = script.read_text(encoding="utf-8")
+
+    try:
+        from harness.ue_remote import LiveEditorSession
+    except Exception as exc:  # pragma: no cover
+        return {"kind": "live_python", "status": "SKIP",
+                "detail": f"ue_remote import failed: {exc}",
+                "duration_ms": int((time.time() - t0) * 1000)}
+
+    log_path = run.artifacts_dir / "logs" / "live_python.log"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+
+    try:
+        with LiveEditorSession(discovery_timeout_sec=timeout) as ue:
+            t_call = time.time()
+            res = ue.run(code)
+            call_ms = int((time.time() - t_call) * 1000)
+    except TimeoutError as exc:
+        log_path.write_text(f"discovery timeout: {exc}\n", encoding="utf-8")
+        return {"kind": "live_python", "status": "SKIP",
+                "detail": ("no live editor discovered — launch UE with Python "
+                           "Remote Execution enabled (e.g. holo-unreal "
+                           "ue_launch + ue_enable_remote)"),
+                "duration_ms": int((time.time() - t0) * 1000),
+                "artifacts": {"log": str(log_path)}}
+
+    output_lines = [item.get("output", "") for item in res.get("output", [])]
+    output_text = "\n".join(output_lines)
+    log_path.write_text(
+        f"call_ms: {call_ms}\nsuccess: {res.get('success')}\n\n"
+        f"=== code ===\n{code}\n\n=== output ===\n{output_text}\n"
+        f"\n=== result ===\n{res.get('result')}\n",
+        encoding="utf-8")
+
+    if vdef.get("require_success", True) and not res.get("success", False):
+        return {"kind": "live_python", "status": "FAIL",
+                "detail": f"editor reported success=False (call_ms={call_ms})",
+                "duration_ms": int((time.time() - t0) * 1000),
+                "artifacts": {"log": str(log_path)}}
+
+    missing = [s for s in vdef.get("assert_output_contains", [])
+               if s not in output_text]
+    forbidden = [s for s in vdef.get("assert_output_absent", [])
+                 if s in output_text]
+    if missing or forbidden:
+        return {"kind": "live_python", "status": "FAIL",
+                "detail": f"output assertions failed: missing={missing} forbidden={forbidden}",
+                "duration_ms": int((time.time() - t0) * 1000),
+                "artifacts": {"log": str(log_path)}}
+
+    return {"kind": "live_python", "status": "PASS",
+            "detail": (f"live editor RPC completed in {call_ms} ms; "
+                       f"required strings present: {vdef.get('assert_output_contains', [])}"),
+            "duration_ms": int((time.time() - t0) * 1000),
+            "artifacts": {"log": str(log_path)}}
+
+
+# ---- registry ---------------------------------------------------------------
+
 REGISTRY: dict[str, Callable] = {
     "compile":         compile_validator,
     "editor_open":     editor_open_validator,
     "spec_test":       spec_test_validator,
     "functional_test": _stub("functional_test"),
     "pie_recording":   pie_recording_validator,
+    "live_python":     live_python_validator,
     "insights_trace":  _stub("insights_trace"),
     "screenshot_diff": _stub("screenshot_diff"),
     "llm_judge":       _stub("llm_judge"),

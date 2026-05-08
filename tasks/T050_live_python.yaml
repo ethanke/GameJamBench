@@ -1,0 +1,44 @@
+id: T050_live_python
+revision: 1
+title: "Live editor Python — assert via the holo-unreal RPC path"
+generated_by: curated
+generator_seed: null
+
+tier: 1
+capability_axes: [editor_scripting, validation]
+composes: []
+
+prompt: |
+  No agent action required. This task verifies the live_python validator
+  works against an already-running UE editor (launched via the holo-unreal
+  MCP or any other path) with Python Remote Execution enabled.
+
+  If the editor is not running for this workdir, the validator returns
+  SKIP with guidance.
+
+starter_template: blank_cpp_5_7_4
+starter_branch: main
+
+time_budget_min: 5
+token_budget: 10000
+msg_budget: 5
+
+allowed_tools: [Read]
+blocked_tools: []
+
+validators:
+  - kind: live_python
+    timeout_sec: 30
+    code: |
+      import unreal
+      unreal.log_warning("GJB_T050_LIVE_OK")
+      print("hello from live editor")
+    assert_output_contains:
+      - "GJB_T050_LIVE_OK"
+      - "hello from live editor"
+    assert_output_absent:
+      - "Traceback"
+
+golden:
+  test_files: []
+  reference_screenshots: []
